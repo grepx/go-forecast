@@ -96,5 +96,51 @@ func main() {
 	router.GET("/repeat", repeatFunc)
 	router.GET("/db", dbFunc)
 
+	router.GET("/showForecast", showForecast)
+	router.GET("/fetchForecast", fetchForecast)
+
 	router.Run(":" + port)
+}
+
+
+
+func showForecast(c *gin.Context) {
+	createForecastTable(c)
+	rows, err := db.Query("SELECT timestamp, description FROM forecast")
+	if err != nil {
+		c.String(http.StatusInternalServerError,
+			fmt.Sprintf("Error reading ticks: %q", err))
+		return
+	}
+
+	defer rows.Close()
+	for rows.Next() {
+		var timestamp time.Time
+		var description string
+		if err := rows.Scan(&timestamp, &description); err != nil {
+			c.String(http.StatusInternalServerError,
+				fmt.Sprintf("Error scanning timestamps: %q", err))
+			return
+		}
+		c.String(http.StatusOK, fmt.Sprintf("Read from DB: %s, %s\n", timestamp.String(), description))
+	}
+}
+
+func fetchForecast(c *gin.Context) {
+	createForecastTable(c)
+
+	if _, err := db.Exec("INSERT INTO forecast VALUES (now(), $1)", "greg"); err != nil {
+		c.String(http.StatusInternalServerError,
+			fmt.Sprintf("Error incrementing tick: %q", err))
+		return
+	}
+}
+
+func createForecastTable(c *gin.Context) {
+	_, err := db.Exec("CREATE TABLE IF NOT EXISTS forecast (timestamp timestamp, description text)");
+	if err != nil {
+		c.String(http.StatusInternalServerError,
+			fmt.Sprintf("Error creating database table: %q", err))
+		return
+	}
 }
