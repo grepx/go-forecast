@@ -13,6 +13,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/russross/blackfriday"
 	_ "github.com/lib/pq"
+	"encoding/json"
 )
 
 var (
@@ -102,8 +103,6 @@ func main() {
 	router.Run(":" + port)
 }
 
-
-
 func showForecast(c *gin.Context) {
 	createForecastTable(c)
 	rows, err := db.Query("SELECT timestamp, description FROM forecast")
@@ -134,6 +133,12 @@ func fetchForecast(c *gin.Context) {
 			fmt.Sprintf("Error incrementing tick: %q", err))
 		return
 	}
+
+
+	record := doNetworkCall()
+	c.String(http.StatusOK, fmt.Sprintf("Read from network: %s\n", record.Cod))
+
+	return
 }
 
 func createForecastTable(c *gin.Context) {
@@ -143,4 +148,51 @@ func createForecastTable(c *gin.Context) {
 			fmt.Sprintf("Error creating database table: %q", err))
 		return
 	}
+}
+
+type ForecastResponse struct {
+	Cod string `json:"cod"`
+}
+
+func doNetworkCall() ForecastResponse {
+	// Fill the record with the data from the JSON
+	var forecastResponse ForecastResponse
+
+
+	url := "http://samples.openweathermap.org/data/2.5/forecast?q=London,us&appid=b1b15e88fa797225412429c1c50c122a1"
+
+	// Build the request
+	req, err := http.NewRequest("GET", url, nil)
+	if err != nil {
+		log.Fatal("NewRequest: ", err)
+		return forecastResponse
+	}
+
+	// For control over HTTP client headers,
+	// redirect policy, and other settings,
+	// create a Client
+	// A Client is an HTTP client
+	client := &http.Client{}
+
+	// Send the request via a client
+	// Do sends an HTTP request and
+	// returns an HTTP response
+	resp, err := client.Do(req)
+	if err != nil {
+		log.Fatal("Do: ", err)
+		return forecastResponse
+	}
+
+	// Callers should close resp.Body
+	// when done reading from it
+	// Defer the closing of the body
+	defer resp.Body.Close()
+
+
+	// Use json.Decode for reading streams of JSON data
+	if err := json.NewDecoder(resp.Body).Decode(&forecastResponse); err != nil {
+		log.Println(err)
+	}
+
+	return forecastResponse
 }
