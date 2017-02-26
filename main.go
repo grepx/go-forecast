@@ -75,7 +75,7 @@ func main() {
 		repeat = 5
 	}
 
-	db, err = sql.Open("postgres", os.Getenv("DATABASE_URL"))
+	db, err = sql.Open("postgres", os.Getenv("DATABASE_URL") + " sslmode=disable")
 	if err != nil {
 		log.Fatalf("Error opening database: %q", err)
 	}
